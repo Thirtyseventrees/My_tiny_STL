@@ -917,7 +917,7 @@ void print_rb_tree(mystl::rb_tree<T, Compare, KeyOfValue>& tree)
     using base_ptr = typename mystl::rb_tree<T, Compare, KeyOfValue>::base_ptr;
 
     // BFS
-    std::queue<base_ptr> q;
+    mystl::queue<base_ptr> q;
     q.push(tree.root().node);
 
     auto header_ptr = tree.end().node; 
@@ -932,41 +932,33 @@ void print_rb_tree(mystl::rb_tree<T, Compare, KeyOfValue>& tree)
         if (node == header_ptr)
             continue;
 
-        std::cout << "Node value: " << node->as_node()->value;
+        printf("Node value: %d", node->as_node()->value);
+        printf(" | color: %s", (node->color == mystl::black ? "black" : "red"));
 
-        std::cout << " | color: "
-                  << ((node->color == mystl::black) ? "black" : "red");
-
-        if (node->parent == nullptr || node->parent == header_ptr)
-        {
-            std::cout << " | parent: null";
+        if (node->parent == nullptr || node->parent == header_ptr){
+            printf(" | parent: null");
         }
-        else
-        {
-            std::cout << " | parent: " << node->parent->as_node()->value;
+        else{
+            printf(" | parent: %d", node->parent->as_node()->value);
         }
 
-        if (node->left)
-        {
-            std::cout << " | left child: " << node->left->as_node()->value;
+        if (node->left){
+            printf(" | left child: %d", node->left->as_node()->value);
             q.push(node->left);
         }
-        else
-        {
-            std::cout << " | left child: null";
+        else{
+            printf(" | left child: null");
         }
 
-        if (node->right)
-        {
-            std::cout << " | right child: " << node->right->as_node()->value;
+        if (node->right){
+            printf(" | right child: %d", node->right->as_node()->value);
             q.push(node->right);
         }
-        else
-        {
-            std::cout << " | right child: null";
+        else{
+            printf(" | right child: null");
         }
 
-        std::cout << std::endl;
+        printf("\n");
     }
 };
 
