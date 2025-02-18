@@ -5,6 +5,7 @@
 #include "exceptdef.h"
 #include "iterator.h"
 #include "util.h"
+#include "queue.h"
 
 namespace mystl {
 
@@ -176,8 +177,63 @@ struct rb_tree_iterator : public base_rb_tree_iterator<T> {
     }
 };
 
+template <typename T>
+struct rb_tree_const_iterator : public base_rb_tree_iterator<T> {
+    using value_type = T;
+    using pointer = T *;
+    using const_pointer = const T*;
+    using reference = T &;
+    using const_reference = const T&;
+    using base_ptr = base_rb_tree_node<T> *;
+    using node_ptr = rb_tree_node<T> *;
+    using _base_rb_tree_node = base_rb_tree_node<T>;
+    using _rb_tree_node = rb_tree_node<T>;
+
+    using iterator = rb_tree_iterator<T>;
+    using const_iterator = rb_tree_const_iterator<T>;
+    using self = const_iterator;
+
+    using base_rb_tree_iterator<T>::node;
+
+    //construct
+    rb_tree_const_iterator() : base_rb_tree_iterator<T>() {};
+    rb_tree_const_iterator(base_ptr n) : base_rb_tree_iterator<T>(n) {};
+    rb_tree_const_iterator(node_ptr n) : base_rb_tree_iterator<T>(n->as_node()) {};
+    rb_tree_const_iterator(const iterator &rhs) : base_rb_tree_iterator<T>((rhs.node)->as_node()) {};
+
+    const_reference operator*() const {
+        return node->as_node()->value;
+    }
+
+    const_pointer operator->() const {
+        return &(operator*());
+    }
+
+    self &operator++() {
+        this->increment();
+        return *this;
+    }
+
+    self operator++(int) {
+        self temp = *this;
+        this->increment();
+        return temp;
+    }
+
+    self &operator--() {
+        this->decrement();
+        return *this;
+    }
+
+    self operator--(int) {
+        self temp = *this;
+        this->decrement();
+        return temp;
+    }
+};
+
 template <typename T, typename comp, typename KeyOfValue, typename alloc = mystl::allocator<T>>
-struct rb_tree {
+class rb_tree {
 
   public:
     using base_ptr = base_rb_tree_node<T> *;
@@ -199,40 +255,8 @@ struct rb_tree {
     using key_of_value = KeyOfValue;
     using size_type = size_t;
     using iterator = rb_tree_iterator<T>;
-
-  protected:
-    node_ptr create_node(const value_type &value) {
-        node_ptr p = node_allocator::allocate();
-        p->color = red;
-        p->left = nullptr;
-        p->right = nullptr;
-        data_allocator::construct(&(p->value), value);
-        return p;
-    }
-
-    template <typename... Args>
-    node_ptr create_node(Args &&...args) {
-        node_ptr p = node_allocator::allocate();
-        p->color = red;
-        p->left = nullptr;
-        p->right = nullptr;
-        data_allocator::construct(&(p->value), mystl::forward<Args>(args)...);
-        return p;
-    }
-
-    // copy value and color
-    node_ptr copy_node(const node_ptr &rhs) {
-        node_ptr p = create_node(rhs->value);
-        p->color = rhs->color;
-        p->left = nullptr;
-        p->right = nullptr;
-        return p;
-    }
-
-    void destroy_node(node_ptr p) {
-        data_allocator::destroy(&(p->value));
-        node_allocator::deallocate(p);
-    }
+    using const_iterator = rb_tree_const_iterator<T>;
+    using self = rb_tree<value_type, key_compare, key_of_value, allocator_type>;
 
   private:
     size_type node_count;
@@ -244,33 +268,94 @@ struct rb_tree {
     // Construct
     rb_tree(const key_compare &c = comp(), const key_of_value &k = KeyOfValue()) : _key_comp(c), _key_of_value(k) { rb_tree_init(); }
 
+    //copy construct
+    rb_tree(const self& rhs) : _key_comp(comp()), _key_of_value(KeyOfValue()) {
+        rb_tree_init();
+        node_count = rhs.node_count;
+        if(rhs.node_count != 0){
+            header->parent = copy_subtree(rhs.root_ptr(), header);
+            header->left = rb_tree_min_ptr(header->parent);
+            header->right = rb_tree_max_ptr(header->parent);
+        }
+    }
+
+    //move construct
+    rb_tree(self&& rhs) : node_count(mystl::move(rhs.node_count)), header(mystl::move(rhs.header)), _key_comp(comp()), _key_of_value(KeyOfValue()) {
+        rhs.node_count = 0;
+        rhs.header = nullptr;
+    }
+
     ~rb_tree() {
         clear();
         base_node_allocator::deallocate(header);
     }
 
+    //copy operator
+    self& operator=(const self& rhs){
+        if(this != &rhs){
+            clear();
+            node_count = rhs.node_count;
+            if(rhs.node_count != 0){
+                header->parent = copy_subtree(rhs.root_ptr(), header);
+                header->left = rb_tree_min_ptr(header->parent);
+                header->right = rb_tree_max_ptr(header->parent);
+            }
+        }
+        return *this;
+    }
+
+    //move operator
+    self& operator=(self&& rhs){
+        clear();
+        header = mystl::move(rhs.header);
+        node_count = mystl::move(rhs.node_count);
+        rhs.node_count = 0;
+        rhs.header = nullptr;
+        return *this;
+    }
+
+    bool empty(){
+        return header == header->parent || header == nullptr;
+    }
+
+    size_type size() const{
+        return node_count;
+    }
+
     // iterator
-    iterator begin() {
+    iterator begin() const {
         return iterator(leftmost_ptr());
     }
 
-    iterator end() {
+    const_iterator cbegin() const {
+        return const_iterator(leftmost_ptr());
+    }
+
+    iterator end() const {
         return iterator(header);
     }
 
-    iterator root() {
+    const_iterator cend() const{
+        return const_iterator(header);
+    }
+
+    iterator root() const {
         return iterator(header->parent);
     }
 
-    iterator leftmost() {
+    const_iterator croot() const {
+        return const_iterator(header->parent);
+    }
+
+    iterator leftmost() const {
         return iterator(leftmost_ptr());
     }
 
-    iterator rightmost() {
+    iterator rightmost() const {
         return iterator(rightmost_ptr());
     }
 
-    iterator find(const value_type &value) {
+    iterator find(const value_type &value) const {
         return iterator(find_ptr(value));
     }
 
@@ -282,13 +367,39 @@ struct rb_tree {
         return insert_unique_node(value);
     }
 
+    mystl::pair<const_iterator, bool> const_insert_unique(const value_type &value) {
+        return const_insert_unique_node(value);
+    }
+
+    template <typename iter>
+    void insert_unique(iter first, iter last){
+        for(; first != last; ++first)
+            insert_unique(*first);
+    }
+
     bool erase_unique(const value_type& value){
         return erase_node(value);
     }
 
-    /***************/
+    size_type count_unique(const value_type& value){
+        return find_ptr(value) == header ? 0 : 1;
+    }
+
+    void swap(self& rhs){
+        if(this != &rhs){
+            mystl::swap(header, rhs.header);
+            mystl::swap(node_count, rhs.node_count);
+        }
+    }
+
+    void swap(self& lhs, self& rhs){
+        lhs.swap(rhs);
+    }
+
+    /***************************************/
     // private function
   private:
+  
     base_ptr &root_ptr() const {
         return header->parent;
     }
@@ -310,7 +421,71 @@ struct rb_tree {
         node_count = 0;
     }
 
-    base_ptr find_ptr(const value_type &value) {
+    node_ptr create_node(const value_type &value) {
+        node_ptr p = node_allocator::allocate();
+        p->color = red;
+        p->left = nullptr;
+        p->right = nullptr;
+        data_allocator::construct(&(p->value), value);
+        return p;
+    }
+
+    template <typename... Args>
+    node_ptr create_node(Args &&...args) {
+        node_ptr p = node_allocator::allocate();
+        p->color = red;
+        p->left = nullptr;
+        p->right = nullptr;
+        p->parent = nullptr;
+        data_allocator::construct(&(p->value), mystl::forward<Args>(args)...);
+        return p;
+    }
+
+    // copy value and color
+    node_ptr copy_node(const node_ptr &rhs) {
+        node_ptr p = create_node(rhs->value);
+        p->color = rhs->color;
+        return p;
+    }
+
+    void destroy_node(node_ptr p) {
+        data_allocator::destroy(&(p->value));
+        node_allocator::deallocate(p);
+    }
+
+    void erase_sub_tree(base_ptr r) {
+        while (r != nullptr) {
+            erase_sub_tree(r->right);
+            base_ptr l = r->left;
+            destroy_node(r->as_node());
+            --node_count;
+            r = l;
+        }
+    }
+
+    void clear() {
+        if (node_count != 0) {
+            erase_sub_tree(root_ptr());
+            header->left = header;
+            header->right = header;
+            header->parent = nullptr;
+            node_count = 0;
+        }
+    }
+
+    //x is root of the copied subtree. parent is the father of the new tree.
+    base_ptr copy_subtree(base_ptr x, base_ptr parent){
+        if(x == nullptr)
+            return nullptr;
+        node_ptr new_node = create_node(x->as_node()->value);
+        new_node->color = x->color;
+        new_node->parent = parent;
+        new_node->left = copy_subtree(x->left, new_node);
+        new_node->right = copy_subtree(x->right, new_node);
+        return new_node;
+    }
+
+    base_ptr find_ptr(const value_type &value) const {
         node_ptr cur = header->parent->as_node();
         auto key = _key_of_value(value);
         while (cur != nullptr) {
@@ -344,6 +519,18 @@ struct rb_tree {
         return node;
     }
 
+    base_ptr rb_tree_min_ptr(base_ptr node){
+        while(node->left != nullptr)
+            node = node->left;
+        return node;
+    }
+
+    base_ptr rb_tree_max_ptr(base_ptr node){
+        while(node->right != nullptr)
+            node = node->right;
+        return node;
+    }
+
     base_ptr insert_node(const value_type &value) {
         node_ptr n = create_node(value);
         insert_node_at(get_parent_pos_of_value(value), n);
@@ -354,13 +541,16 @@ struct rb_tree {
         base_ptr node = find_ptr(value);
         if (node == header)
             return false;
-        exchange_node(node, next_ptr(node));
+        if(node->left != nullptr && node->right != nullptr)
+            exchange_node(node, next_ptr(node));
         node_color original_color = node->color;
         base_ptr father = node->parent;
         base_ptr child = node->right;
         if (child != nullptr)
             child->parent = father;
-        if (father->left == node)
+        if(father == header)
+            father->parent = child;
+        else if (father->left == node)
             father->left = child;
         else
             father->right = child;
@@ -374,12 +564,27 @@ struct rb_tree {
     }
 
     mystl::pair<iterator, bool> insert_unique_node(const value_type &value) {
-        node_ptr father = get_parent_pos_of_value(value)->as_node();
-        if (!_key_comp(_key_of_value(value), _key_of_value(father->value)) && !_key_comp(_key_of_value(father->value), _key_of_value(value)))
-            return mystl::pair<iterator, bool>(end(), false);
+        node_ptr father = header->as_node();
+        if(node_count != 0){
+            father = get_parent_pos_of_value(value)->as_node();
+            if (!_key_comp(_key_of_value(value), _key_of_value(father->value)) && !_key_comp(_key_of_value(father->value), _key_of_value(value)))
+                return mystl::pair<iterator, bool>(end(), false);
+        }
         node_ptr n = create_node(value);
         insert_node_at(father, n);
-        return mystl::pair<iterator, bool>(iterator(father), true);
+        return mystl::pair<iterator, bool>(iterator(n), true);
+    }
+
+    mystl::pair<const_iterator, bool> const_insert_unique_node(const value_type &value) {
+        node_ptr father = header->as_node();
+        if(node_count != 0){
+            father = get_parent_pos_of_value(value)->as_node();
+            if (!_key_comp(_key_of_value(value), _key_of_value(father->value)) && !_key_comp(_key_of_value(father->value), _key_of_value(value)))
+                return mystl::pair<const_iterator, bool>(end(), false);
+        }
+        node_ptr n = create_node(value);
+        insert_node_at(father, n);
+        return mystl::pair<const_iterator, bool>(const_iterator(n), true);
     }
 
     base_ptr get_parent_pos_of_value(const value_type &value) {
@@ -500,14 +705,14 @@ struct rb_tree {
                 // if the color of brother is black
                 if (brother->color == black) {
                     // if brother node has child
-                    if (brother->right != nullptr) {
+                    if (brother->right != nullptr && brother->right->color == red) {
                         left_rotate(brother->parent);
                         brother->color = father_color;
                         brother->left->color = black;
                         brother->right->color = black;
                         // finish, exit
                         node = header->parent;
-                    } else if (brother->left != nullptr) {
+                    } else if (brother->left != nullptr && brother->left->color == red) {
                         right_rotate(brother);
                         left_rotate(father);
                         father->color = black;
@@ -521,7 +726,9 @@ struct rb_tree {
                         // the color of father is red
                         if (father_color == red) {
                             brother->color = red;
-                            father_color = black;
+                            father->color = black;
+                            // finish, exit
+                            node = header->parent;
                         }
                         // the color of father is black
                         else {
@@ -546,14 +753,14 @@ struct rb_tree {
                 // if the color of brother is black
                 if (brother->color == black) {
                     // if brother node has child
-                    if (brother->left != nullptr) {
+                    if (brother->left != nullptr && brother->left->color == red) {
                         right_rotate(father);
                         brother->color = father_color;
                         brother->left->color = black;
                         brother->right->color = black;
                         // finish, exit
                         node = header->parent;
-                    } else {
+                    } else if (brother->right != nullptr && brother->right->color == red) {
                         left_rotate(brother);
                         right_rotate(father);
                         father->color = black;
@@ -562,19 +769,21 @@ struct rb_tree {
                         // finish, exit
                         node = header->parent;
                     }
-                }
-                // brother has no child
-                else {
-                    // the color of father is red
-                    if (father_color == red) {
-                        brother->color = red;
-                        father_color = black;
-                    }
-                    // the color of father is black
-                    else{
-                        brother->color = red;
-                        node = father;
-                        father = father->parent;
+                    // brother has no child
+                    else {
+                        // the color of father is red
+                        if (father_color == red) {
+                            brother->color = red;
+                            father->color = black;
+                            // finish, exit
+                            node = header->parent;
+                        }
+                        // the color of father is black
+                        else{
+                            brother->color = red;
+                            node = father;
+                            father = father->parent;
+                        }
                     }
                 }
             }
@@ -700,25 +909,64 @@ struct rb_tree {
         }
         mystl::swap(x->color, y->color);
     }
+};
 
-    void erase_sub_tree(base_ptr r) {
-        while (r != nullptr) {
-            erase_sub_tree(r->right);
-            base_ptr l = r->left;
-            destroy_node(r->as_node());
-            --node_count;
-            r = l;
-        }
-    }
+template <typename T, typename Compare, typename KeyOfValue>
+void print_rb_tree(mystl::rb_tree<T, Compare, KeyOfValue>& tree)
+{
+    using base_ptr = typename mystl::rb_tree<T, Compare, KeyOfValue>::base_ptr;
 
-    void clear() {
-        if (node_count != 0) {
-            erase_sub_tree(root_ptr());
-            header->left = header;
-            header->right = header;
-            header->parent = nullptr;
-            node_count = 0;
+    // BFS
+    std::queue<base_ptr> q;
+    q.push(tree.root().node);
+
+    auto header_ptr = tree.end().node; 
+
+    while (!q.empty())
+    {
+        base_ptr node = q.front();
+        q.pop();
+        if (!node)
+            continue;
+        
+        if (node == header_ptr)
+            continue;
+
+        std::cout << "Node value: " << node->as_node()->value;
+
+        std::cout << " | color: "
+                  << ((node->color == mystl::black) ? "black" : "red");
+
+        if (node->parent == nullptr || node->parent == header_ptr)
+        {
+            std::cout << " | parent: null";
         }
+        else
+        {
+            std::cout << " | parent: " << node->parent->as_node()->value;
+        }
+
+        if (node->left)
+        {
+            std::cout << " | left child: " << node->left->as_node()->value;
+            q.push(node->left);
+        }
+        else
+        {
+            std::cout << " | left child: null";
+        }
+
+        if (node->right)
+        {
+            std::cout << " | right child: " << node->right->as_node()->value;
+            q.push(node->right);
+        }
+        else
+        {
+            std::cout << " | right child: null";
+        }
+
+        std::cout << std::endl;
     }
 };
 

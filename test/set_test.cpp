@@ -44,15 +44,8 @@ int main(){
     for(int i = 0; i < 20; i++)
         a.insert(i);
 
-    for(int i = 0; i < 20; i++)
-        std::cout << *(a.find(19 - i)) << " ";
-
-    std::cout << std::endl;
-    for(int i = 0; i < 20; i++){
-        a.erase(i);
-        std::cout << a.size() << " ";
-    }
-    std::cout << std::endl;
+    a.find(10);
+    a.erase(7);
 
     return 0;
 }

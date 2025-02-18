@@ -5,8 +5,6 @@
 #define DEQUE_INIT_SIZE 8
 #endif
 
-#include <iostream>
-
 #include "algobase.h"
 #include "allocator.h"
 #include "iterator.h"
@@ -218,6 +216,15 @@ namespace mystl{
         typename mystl::enable_if<mystl::is_the_same_type<typename mystl::iterator_traits<iter>::value_type, value_type>::value, int>::type = 0>
         deque(iter first, iter last){
             copy_init(first, last);
+        }
+
+        deque(const deque& rhs){
+            copy_init(rhs._begin, rhs._end);
+        }
+
+        deque(deque&& rhs) : _begin(mystl::move(rhs._begin)), _end(mystl::move(rhs._end)), _map(mystl::move(rhs._map)), _map_size(mystl::move(rhs._map_size)){
+            rhs._map = nullptr;
+            rhs._map_size = 0;
         }
 
         ~deque(){

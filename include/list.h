@@ -475,6 +475,10 @@ namespace mystl{
             //mystl::swap(_size, rhs._size);
         }
 
+        void swap(list& lhs, list& rhs){
+            lhs.swap(rhs);
+        }
+
     private:
 
         void unlink_node(base_ptr first, base_ptr last){

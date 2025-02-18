@@ -33,6 +33,20 @@ namespace mystl{
         rhs = mystl::move(tmp);
     }
 
+    struct compare_less{
+        template <typename T>
+        bool operator()(const T& lhs, const T& rhs) const{
+            return lhs < rhs;
+        }
+    };
+
+    struct key_of_value{
+        template <typename T>
+        T operator()(const T& value) const{
+            return value;
+        }
+    };
+
     template <typename T1, typename T2>
     struct pair{
     
@@ -47,7 +61,18 @@ namespace mystl{
         pair(pair&& rhs) = default;
         ~pair() = default;
 
+        pair& operator=(const pair& rhs){
+            first = rhs.first;
+            second = rhs.second;
+            return *this;
+        }
+
     };
+
+    template <typename T1, typename T2>
+    pair<T1, T2> make_pair(T1&& first, T2&& second){
+        return pair<T1, T2>(mystl::forward<T1>(first), mystl::forward<T2>(second));
+    }
 }
 
 #endif
