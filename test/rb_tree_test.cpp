@@ -79,9 +79,21 @@ int main(){
     std::cout << "Delete: 15" << std::endl;
     print_rb_tree(a);
 
-    // std::cout << std::endl;
-    // mystl::rb_tree<int, compare_less, key_of_value> b(a);
-    // print_rb_tree(b);
+    std::cout << std::endl;
+    mystl::rb_tree<int, compare_less, key_of_value> b;
+    for(int i = 0; i < 5; i++)
+        b.insert_equal(i);
+    for(int i = 0; i < 5; i++)
+        b.insert_equal(3);
+    print_rb_tree(b);
+
+    std::cout << std::endl;
+    std::cout << b.count_multi(3) << std::endl;
+    std::cout << b.erase_multi(3) << std::endl;
+    std::cout << b.erase_multi(-1) << std::endl;
+    std::cout << b.count_multi(-1) << std::endl;
+    std::cout << b.count_multi(0) << std::endl;
+    print_rb_tree(b);
 
     return 0;
 }
