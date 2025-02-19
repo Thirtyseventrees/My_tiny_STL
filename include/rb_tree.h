@@ -359,6 +359,18 @@ class rb_tree {
         return iterator(find_ptr(value));
     }
 
+    mystl::pair<iterator, iterator> equal_range(const value_type& value) const {
+        return range_of_multi_equal_key(value);
+    }
+
+    iterator lower_bound(const value_type& value) const {
+        return iterator(prev_ptr(find_ptr(value)));
+    }
+
+    iterator upper_bound(const value_type& value) const {
+        return iterator(next_ptr(find_ptr(value)));
+    }
+
     iterator insert_equal(const value_type &value) {
         return iterator(insert_node(value));
     }
@@ -377,12 +389,56 @@ class rb_tree {
             insert_unique(*first);
     }
 
+    iterator erase(iterator hint){
+        iterator next = iterator(next_ptr(hint.node));
+        erase_node(hint);
+        return next;
+    }
+
+    void erase(iterator first, iterator last){
+        if(first == begin() && last == end())
+            clear();
+        else{
+            iterator cur = first;
+            for(; cur != last; first = cur){
+                ++cur;
+                erase_node(first);
+            }
+        }
+    }
+
     bool erase_unique(const value_type& value){
         return erase_node(value);
     }
 
+    size_type erase_multi(const value_type& value){
+        mystl::pair<iterator, iterator> range = range_of_multi_equal_key(value);
+        size_type n = mystl::distance(range.first, range.second);
+        erase(range.first, range.second);
+        return n;
+    }
+
     size_type count_unique(const value_type& value){
         return find_ptr(value) == header ? 0 : 1;
+    }
+    
+    size_type count_multi(const value_type& value){
+        size_type n = 0;
+        base_ptr mid = find_ptr(value);
+        if(mid == header)
+            return 0;
+        base_ptr cur = mid;
+        auto key = _key_of_value(value);
+        while(cur != header && !_key_comp(key, _key_of_value(cur->as_node()->value)) && !_key_comp(_key_of_value(cur->as_node()->value), key)){
+            cur = next_ptr(cur);
+            ++n;
+        }
+        cur = mid;
+        while(cur != header && !_key_comp(key, _key_of_value(cur->as_node()->value)) && !_key_comp(_key_of_value(cur->as_node()->value), key)){
+            cur = prev_ptr(cur);
+            ++n;
+        }
+        return n - 1;
     }
 
     void swap(self& rhs){
@@ -473,6 +529,44 @@ class rb_tree {
         }
     }
 
+    base_ptr prev_ptr(base_ptr node) const {
+        if(node->left != nullptr){
+            node = node->left;
+            while(node->right != nullptr)
+                node = node->right;
+        }
+        else{
+            base_ptr father = node->parent;
+            while(father->left == node){
+                node = father;
+                father = node->parent;
+                if(node == header)
+                    return header;
+            }
+            node = father;
+        }
+        return node;
+    }
+
+    base_ptr next_ptr(base_ptr node) const {
+        if (node->right != nullptr) {
+            node = node->right;
+            while (node->left != nullptr)
+                node = node->left;
+        } 
+        else {
+            base_ptr father = node->parent;
+            while (father->right == node) {
+                node = father;
+                father = node->parent;
+                if(node == header)
+                    return header;
+            }
+            node = father;
+        }
+        return node;
+    }
+
     //x is root of the copied subtree. parent is the father of the new tree.
     base_ptr copy_subtree(base_ptr x, base_ptr parent){
         if(x == nullptr)
@@ -501,40 +595,21 @@ class rb_tree {
         return header;
     }
 
-    base_ptr prev_ptr(base_ptr node){
-        if(node->left != nullptr){
-            node = node->left;
-            while(node->right != nullptr)
-                node = node->right;
+    //return two iterator [start, end)
+    mystl::pair<iterator, iterator> range_of_multi_equal_key(const value_type& value) const{
+        base_ptr mid = find_ptr(value);
+        base_ptr cur = mid;
+        auto key = _key_of_value(value);
+        while(cur != header && !_key_comp(key, _key_of_value(cur->as_node()->value)) && !_key_comp(_key_of_value(cur->as_node()->value), key))
+            cur = next_ptr(cur);
+        iterator end(cur);
+        cur = mid;
+        while(cur != header && !_key_comp(key, _key_of_value(cur->as_node()->value)) && !_key_comp(_key_of_value(cur->as_node()->value), key)){
+            mid = cur;
+            cur = prev_ptr(cur);
         }
-        else{
-            base_ptr father = node->parent;
-            while(father->left == node){
-                node = father;
-                father = node->parent;
-            }
-            node = father;
-        }
-        return node;
-    }
-
-    base_ptr next_ptr(base_ptr node) {
-        if (node->right != nullptr) {
-            node = node->right;
-            while (node->left != nullptr)
-                node = node->left;
-        } 
-        else {
-            base_ptr father = node->parent;
-            while (father->right == node) {
-                node = father;
-                father = node->parent;
-            }
-            // Check the case that find the next of the root node which has no right child.
-            if (node->right != father)
-                node = father;
-        }
-        return node;
+        iterator start(mid);
+        return mystl::pair<iterator, iterator>(start, end);
     }
 
     base_ptr rb_tree_min_ptr(base_ptr node){
@@ -558,6 +633,46 @@ class rb_tree {
     bool erase_node(const value_type &value) {
         base_ptr node = find_ptr(value);
         if(node == header)
+            return false;
+        if(node == header->left){
+            if(node_count == 1){
+                header->left = header;
+                header->right = header;
+            }
+            else
+                header->left = next_ptr(node);
+        }
+        else if(node == header->right){
+            if(node_count == 1){
+                header->left = header;
+                header->right = header;
+            }
+            else
+                header->right = prev_ptr(node);
+        }
+        if(node->left != nullptr && node->right != nullptr)
+            exchange_node(node, next_ptr(node));
+        node_color original_color = node->color;
+        base_ptr father = node->parent;
+        base_ptr child = (node->left != nullptr) ? node->left : node->right;
+        if (child != nullptr)
+            child->parent = father;
+        if(father == header)
+            father->parent = child;
+        else if (father->left == node)
+            father->left = child;
+        else
+            father->right = child;
+        destroy_node(node->as_node());
+        if (original_color == black)
+            rb_tree_erase_reblance(child, father);
+        --node_count;
+        return true;
+    }
+
+    bool erase_node(iterator hint) {
+        base_ptr node = hint.node;
+        if(node == header || node == nullptr)
             return false;
         if(node == header->left){
             if(node_count == 1){
