@@ -501,12 +501,30 @@ class rb_tree {
         return header;
     }
 
+    base_ptr prev_ptr(base_ptr node){
+        if(node->left != nullptr){
+            node = node->left;
+            while(node->right != nullptr)
+                node = node->right;
+        }
+        else{
+            base_ptr father = node->parent;
+            while(father->left == node){
+                node = father;
+                father = node->parent;
+            }
+            node = father;
+        }
+        return node;
+    }
+
     base_ptr next_ptr(base_ptr node) {
         if (node->right != nullptr) {
             node = node->right;
             while (node->left != nullptr)
                 node = node->left;
-        } else {
+        } 
+        else {
             base_ptr father = node->parent;
             while (father->right == node) {
                 node = father;
@@ -539,13 +557,29 @@ class rb_tree {
 
     bool erase_node(const value_type &value) {
         base_ptr node = find_ptr(value);
-        if (node == header)
+        if(node == header)
             return false;
+        if(node == header->left){
+            if(node_count == 1){
+                header->left = header;
+                header->right = header;
+            }
+            else
+                header->left = next_ptr(node);
+        }
+        else if(node == header->right){
+            if(node_count == 1){
+                header->left = header;
+                header->right = header;
+            }
+            else
+                header->right = prev_ptr(node);
+        }
         if(node->left != nullptr && node->right != nullptr)
             exchange_node(node, next_ptr(node));
         node_color original_color = node->color;
         base_ptr father = node->parent;
-        base_ptr child = node->right;
+        base_ptr child = (node->left != nullptr) ? node->left : node->right;
         if (child != nullptr)
             child->parent = father;
         if(father == header)
@@ -554,8 +588,6 @@ class rb_tree {
             father->left = child;
         else
             father->right = child;
-        node->right = nullptr;
-        node->parent = nullptr;
         destroy_node(node->as_node());
         if (original_color == black)
             rb_tree_erase_reblance(child, father);

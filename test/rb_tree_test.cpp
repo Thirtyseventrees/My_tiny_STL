@@ -59,12 +59,25 @@ int main(){
 
     std::cout << std::endl;
 
-    for(int i = 1; i < 30; i++){
+    for(int i = 1; i < 15; i++){
         a.erase_unique(i);
         std::cout << "Delete: " << i << std::endl;
         print_rb_tree(a);
+        std::cout << "leftmost: " << *(a.leftmost()) << " rightmost: " << *(a.rightmost()) << std::endl;
         std::cout <<std::endl;
     }
+
+    for(int i = 29; i > 15; i--){
+        a.erase_unique(i);
+        std::cout << "Delete: " << i << std::endl;
+        print_rb_tree(a);
+        std::cout << "leftmost: " << *(a.leftmost()) << " rightmost: " << *(a.rightmost()) << std::endl;
+        std::cout <<std::endl;
+    }
+
+    a.erase_unique(15);
+    std::cout << "Delete: 15" << std::endl;
+    print_rb_tree(a);
 
     // std::cout << std::endl;
     // mystl::rb_tree<int, compare_less, key_of_value> b(a);
