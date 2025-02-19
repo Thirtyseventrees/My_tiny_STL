@@ -5,6 +5,7 @@
 #include <initializer_list>
 #include <queue>
 #include <set>
+#include <string>
 
 #include "../include/allocator.h"
 #include "../include/vector.h"
@@ -12,47 +13,23 @@
 #include "../include/deque.h"
 #include "../include/rb_tree.h"
 #include "../include/set.h"
-
-template <typename T>
-class MyClass {
-public:
-    MyClass() = delete;
-    MyClass(int x, std::vector<T>&& v) : index(x), vec(v) {};
-    std::vector<T> getVec() const {
-        return vec;
-    }
-
-    int getIndex() const {
-        return index;
-    }
-private:
-    int index;
-    std::vector<T> vec;
-};
-
-template <typename T>
-class TestClass{
-    public:
-    ~TestClass() = delete;
-};
+#include "../include/map.h"
 
 int main(){
 
+    mystl::map<int, std::string> a;
+    a[0] = "yu";
+    a[7] = "ft";
+    a[2] = "so";
+    a[1] = "zu";
 
-    std::set<int> test;
-    mystl::set<int> a;
-    for(int i = 0; i < 20; i++)
-        a.insert(i);
-
-    for(int i = 0; i < 20; i++)
-        std::cout << *(a.find(19 - i)) << " ";
-
+    for(auto i : a)
+        std::cout << i.second;
     std::cout << std::endl;
-    for(int i = 0; i < 20; i++){
-        a.erase(i);
-        std::cout << a.size() << " ";
-    }
-    std::cout << std::endl;
+
+    mystl::map<int, std::string> b;
+    b[5] = "ciallo";
+    std::cout << b[5] << std::endl;
 
     return 0;
 }

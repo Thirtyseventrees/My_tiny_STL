@@ -257,6 +257,7 @@ class rb_tree {
     using iterator = rb_tree_iterator<T>;
     using const_iterator = rb_tree_const_iterator<T>;
     using self = rb_tree<value_type, key_compare, key_of_value, allocator_type>;
+    using key_type = decltype(KeyOfValue()(mystl::declval<value_type>()));
 
   private:
     size_type node_count;
@@ -355,20 +356,32 @@ class rb_tree {
         return iterator(rightmost_ptr());
     }
 
-    iterator find(const value_type &value) const {
-        return iterator(find_ptr(value));
+    iterator find(const key_type &key){
+        return iterator(find_ptr(key));
     }
 
-    mystl::pair<iterator, iterator> equal_range(const value_type& value) const {
-        return range_of_multi_equal_key(value);
+    const_iterator find(const key_type &key) const {
+        return const_iterator(find_ptr(key));
     }
 
-    iterator lower_bound(const value_type& value) const {
-        return iterator(prev_ptr(find_ptr(value)));
+    mystl::pair<iterator, iterator> equal_range(const key_type& key) const {
+        return range_of_multi_equal_key(key);
     }
 
-    iterator upper_bound(const value_type& value) const {
-        return iterator(next_ptr(find_ptr(value)));
+    iterator lower_bound(const key_type& key) {
+        return iterator(prev_ptr(find_ptr(key)));
+    }
+
+    const_iterator lower_bound(const key_type& key) const {
+        return const_iterator(prev_ptr(find_ptr(key)));
+    }
+
+    iterator upper_bound(const key_type& key) {
+        return iterator(next_ptr(find_ptr(key)));
+    }
+
+    const_iterator upper_bound(const key_type& key) const {
+        return const_iterator(next_ptr(find_ptr(key)));
     }
 
     iterator insert_equal(const value_type &value) {
@@ -407,28 +420,27 @@ class rb_tree {
         }
     }
 
-    bool erase_unique(const value_type& value){
-        return erase_node(value);
+    bool erase_unique(const key_type& key){
+        return erase_node(key);
     }
 
-    size_type erase_multi(const value_type& value){
-        mystl::pair<iterator, iterator> range = range_of_multi_equal_key(value);
+    size_type erase_multi(const key_type& key){
+        mystl::pair<iterator, iterator> range = range_of_multi_equal_key(key);
         size_type n = mystl::distance(range.first, range.second);
         erase(range.first, range.second);
         return n;
     }
 
-    size_type count_unique(const value_type& value){
-        return find_ptr(value) == header ? 0 : 1;
+    size_type count_unique(const key_type& key){
+        return find_ptr(key) == header ? 0 : 1;
     }
     
-    size_type count_multi(const value_type& value){
+    size_type count_multi(const key_type& key){
         size_type n = 0;
-        base_ptr mid = find_ptr(value);
+        base_ptr mid = find_ptr(key);
         if(mid == header)
             return 0;
         base_ptr cur = mid;
-        auto key = _key_of_value(value);
         while(cur != header && !_key_comp(key, _key_of_value(cur->as_node()->value)) && !_key_comp(_key_of_value(cur->as_node()->value), key)){
             cur = next_ptr(cur);
             ++n;
@@ -579,9 +591,8 @@ class rb_tree {
         return new_node;
     }
 
-    base_ptr find_ptr(const value_type &value) const {
+    base_ptr find_ptr(const key_type &key) const {
         node_ptr cur = header->parent->as_node();
-        auto key = _key_of_value(value);
         while (cur != nullptr) {
             auto cur_key = _key_of_value(cur->value);
             if (_key_comp(key, cur_key)) {
@@ -596,10 +607,9 @@ class rb_tree {
     }
 
     //return two iterator [start, end)
-    mystl::pair<iterator, iterator> range_of_multi_equal_key(const value_type& value) const{
-        base_ptr mid = find_ptr(value);
+    mystl::pair<iterator, iterator> range_of_multi_equal_key(const key_type& key) const{
+        base_ptr mid = find_ptr(key);
         base_ptr cur = mid;
-        auto key = _key_of_value(value);
         while(cur != header && !_key_comp(key, _key_of_value(cur->as_node()->value)) && !_key_comp(_key_of_value(cur->as_node()->value), key))
             cur = next_ptr(cur);
         iterator end(cur);
@@ -626,12 +636,12 @@ class rb_tree {
 
     base_ptr insert_node(const value_type &value) {
         node_ptr n = create_node(value);
-        insert_node_at(get_parent_pos_of_value(value), n);
+        insert_node_at(get_parent_pos_of_key(_key_of_value(value)), n);
         return n;
     }
 
-    bool erase_node(const value_type &value) {
-        base_ptr node = find_ptr(value);
+    bool erase_node(const key_type &key) {
+        base_ptr node = find_ptr(key);
         if(node == header)
             return false;
         if(node == header->left){
@@ -712,10 +722,11 @@ class rb_tree {
 
     mystl::pair<iterator, bool> insert_unique_node(const value_type &value) {
         node_ptr father = header->as_node();
+        key_type key = _key_of_value(value);
         if(node_count != 0){
-            father = get_parent_pos_of_value(value)->as_node();
-            if (!_key_comp(_key_of_value(value), _key_of_value(father->value)) && !_key_comp(_key_of_value(father->value), _key_of_value(value)))
-                return mystl::pair<iterator, bool>(end(), false);
+            father = get_parent_pos_of_key(key)->as_node();
+            if (!_key_comp(key, _key_of_value(father->value)) && !_key_comp(_key_of_value(father->value), key))
+                return mystl::pair<iterator, bool>(iterator(father), false);
         }
         node_ptr n = create_node(value);
         insert_node_at(father, n);
@@ -724,9 +735,10 @@ class rb_tree {
 
     mystl::pair<const_iterator, bool> const_insert_unique_node(const value_type &value) {
         node_ptr father = header->as_node();
+        key_type key = _key_of_value(value);
         if(node_count != 0){
-            father = get_parent_pos_of_value(value)->as_node();
-            if (!_key_comp(_key_of_value(value), _key_of_value(father->value)) && !_key_comp(_key_of_value(father->value), _key_of_value(value)))
+            father = get_parent_pos_of_key(key)->as_node();
+            if (!_key_comp(key, _key_of_value(father->value)) && !_key_comp(_key_of_value(father->value), key))
                 return mystl::pair<const_iterator, bool>(end(), false);
         }
         node_ptr n = create_node(value);
@@ -734,8 +746,7 @@ class rb_tree {
         return mystl::pair<const_iterator, bool>(const_iterator(n), true);
     }
 
-    base_ptr get_parent_pos_of_value(const value_type &value) {
-        auto key = _key_of_value(value);
+    base_ptr get_parent_pos_of_key(const key_type &key) {
         base_ptr x = root_ptr();
         base_ptr father = header;
         while (x != nullptr) {
