@@ -619,7 +619,7 @@ class rb_tree {
             cur = prev_ptr(cur);
         }
         iterator start(mid);
-        return mystl::pair<iterator, iterator>(start, end);
+        return mystl::pair(start, end);
     }
 
     base_ptr rb_tree_min_ptr(base_ptr node){
