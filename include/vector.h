@@ -358,6 +358,14 @@ namespace mystl{
             return !(*this == rhs);
         }
 
+        void swap(vector<T>& rhs) noexcept{
+            if(this != &rhs){
+                mystl::swap(_begin, rhs._begin);
+                mystl::swap(_end, rhs._end);
+                mystl::swap(_cap, rhs._cap);
+            }
+        }
+
     //Private help function
     private:
         void realloc_and_insert(iterator pos, const value_type& value){
@@ -477,13 +485,6 @@ namespace mystl{
             return result;
         }
 
-        void swap(vector<T>& rhs) noexcept{
-            if(this != &rhs){
-                mystl::swap(_begin, rhs._begin);
-                mystl::swap(_end, rhs._end);
-                mystl::swap(_cap, rhs._cap);
-            }
-        }
     };
 
     template <typename T>
