@@ -46,6 +46,7 @@ int main(){
         for(int j = 0; j < static_cast<int>(a[i].size()); j++)
             a[i][j] = i + j;
     }
+    a.emplace_back(mystl::move(mystl::vector<int>(9, 9)));
 
     std::cout << std::endl;
 
@@ -140,6 +141,10 @@ int main(){
         for(auto j : i)
             std::cout << j << " ";
         std::cout << std::endl;
+    }
+    for(int i = 0; i < 10000; i++){
+        d.push_front(mystl::vector<int>(5, 5));
+        d.push_back(mystl::vector<int>(5, 5));
     }
 
     return 0;

@@ -53,6 +53,11 @@ namespace mystl{
             return _c.back();
         }
 
+        template <typename ...Args>
+        void emplace(Args&& ...args){
+            _c.emplace_back(mystl::forward<Args>(args)...);
+        }
+
         void push(const value_type& value){
             _c.push_back(value);
         }

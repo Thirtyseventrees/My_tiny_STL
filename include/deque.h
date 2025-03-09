@@ -309,6 +309,19 @@ namespace mystl{
             }
         }
 
+        template <typename ...Args>
+        void emplace_back(Args&& ...args){
+            if(_end.cur != _end.last - 1){
+                data_allocator::construct(_end.cur, mystl::forward<Args>(args)...);
+                ++_end;
+            }
+            else{
+                require_and_alloc_node_at_back(1);
+                data_allocator::construct(_end.cur, mystl::forward<Args>(args)...);
+                ++_end;
+            }
+        }
+
         void push_back(const value_type& value){
             if(_end.cur != _end.last - 1){
                 data_allocator::construct(_end.cur, value);
@@ -420,7 +433,7 @@ namespace mystl{
         }
 
         void require_and_alloc_node_at_front(size_type n){
-            if(_map < _begin.node){
+            if(_map <= _begin.node - n){
                 create_buffer(_begin.node - n, _begin.node - 1);
             }
             else{

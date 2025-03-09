@@ -9,6 +9,27 @@
 
 namespace mystl{
 
+    //Some hashfunction
+    template <typename key_type>
+    struct _hashfunction{};
+
+    template <>
+    struct _hashfunction<int>{
+        size_t operator()(const int& key){
+            return key;
+        }
+    };
+
+    //Equal function
+    template <typename key_type>
+    struct _equalkey{};
+
+    template <>
+    struct _equalkey<int>{
+        bool operator()(const int& lhs, const int& rhs){
+            return lhs == rhs;
+        }
+    };
 
     static const int num_primes = 44;
     
@@ -332,6 +353,10 @@ namespace mystl{
         //function
         size_type size() const noexcept{
             return num_elements;
+        }
+
+        bool empty() const noexcept{
+            return num_elements == 0;
         }
 
         mystl::pair<iterator, bool> insert_unique(const value_type& value){

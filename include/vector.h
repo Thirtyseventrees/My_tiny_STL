@@ -178,6 +178,10 @@ namespace mystl{
             }
         }
 
+        void push_back(value_type&& value){
+            emplace_back(mystl::move(value));
+        }
+
         void push_back(const value_type& value){
             if(_end != _cap){
                 data_allocator::construct(_end, value);
