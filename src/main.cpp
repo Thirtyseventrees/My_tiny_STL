@@ -6,6 +6,8 @@
 #include <queue>
 #include <set>
 #include <string>
+#include <chrono>
+
 
 #include "../include/alloc.h"
 #include "../include/allocator.h"
@@ -49,6 +51,38 @@ int main(){
     void* p8 = mystl::alloc::allocate(83);
     std::cout << "Allocated address: " << p8 << std::endl;
     mystl::alloc::deallocate(p7, 83);
+
+    auto start_1 = std::chrono::high_resolution_clock::now();
+
+    for(int i = 0; i < 100000000; ++i){
+        void* a1 = mystl::alloc::allocate(64);
+        void* a2 = mystl::alloc::allocate(64);
+        mystl::alloc::deallocate(a1, 64);
+        mystl::alloc::deallocate(a2, 64);
+    }
+
+    auto end_1 = std::chrono::high_resolution_clock::now();
+
+    auto start_2 = std::chrono::high_resolution_clock::now();
+    
+    for(int i = 0; i < 100000000; ++i){
+        int* i1;
+        int* i2;
+        i1 = mystl::allocator<int>::allocate(16);
+        i2 = mystl::allocator<int>::allocate(16);
+        mystl::allocator<int>::deallocate(i1);
+        mystl::allocator<int>::deallocate(i2);
+    }
+
+    auto end_2 = std::chrono::high_resolution_clock::now();
+
+    auto duration_1 = std::chrono::duration_cast<std::chrono::microseconds>(end_1 - start_1);
+    auto duration_2 = std::chrono::duration_cast<std::chrono::microseconds>(end_2 - start_2);
+
+    std::cout << std::endl;
+    std::cout << duration_1.count() << std::endl;
+    std::cout << duration_2.count() << std::endl;
+    std::cout << "Speed Up: " << static_cast<double>(duration_2.count()) / duration_1.count() << std::endl;
 
     return 0;
 }
